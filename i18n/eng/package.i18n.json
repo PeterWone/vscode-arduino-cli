@@ -1,0 +1,14 @@
+{
+  "commands.category": "Arduino-CLI",
+  "commands.title.chooseBoard": "Choose board",
+  "commands.title.chooseDeploymentMethod": "Choose deployment method",
+  "commands.title.compile": "Compile",
+  "commands.title.deploy": "Deploy",
+  "configuration.title.board": "Board",
+  "configuration.title.arduinoCli": "Arduino-CLI",
+  "configuration.description.board": "The type of Arduino you are using",
+  "configuration.description.deploymentMethod": "The hardware programmer or the USB serial port that will deploy compiled code to your Arduino",
+  "configuration.description.showButtons": "Show Compile and Deploy buttons on the toolbar",
+  "configuration.description.arduinoCliPath": "Absolute path to the Arduino-CLI executable",
+  "configuration.description.libraryCatalogueRefreshIntervalMonths": "The number of months between refreshes of your library catalogue."
+}

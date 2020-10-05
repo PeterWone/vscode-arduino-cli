@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" baseProfile="full" width="30" height="30" viewBox="0 0 30.00 30.00" enable-background="new 0 0 30.00 30.00" xml:space="preserve">
+	<g>
+		<rect x="1" y="3.11255" fill="none" stroke-width="2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="24.5677" height="12.8917"/>
+		<path fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" d="M 21.9209,5.38379C 21.0376,5.38379 20.3215,6.09991 20.3215,6.98322C 20.3215,7.86658 21.0376,8.5827 21.9209,8.5827C 22.8043,8.5827 23.5204,7.86658 23.5204,6.98322C 23.5204,6.09991 22.8043,5.38379 21.9209,5.38379 Z "/>
+		<rect x="2.38193" y="0.0479736" fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="3.19892" height="1.53546"/>
+		<rect x="8.47268" y="0.0159912" fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="3.19892" height="1.53546"/>
+		<rect x="14.653" y="0.0319824" fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="3.19892" height="1.53546"/>
+		<rect x="20.8973" y="0" fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="3.19892" height="1.53546"/>
+		<rect x="2.36914" y="17.5461" fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="3.19892" height="1.53546"/>
+		<rect x="8.45989" y="17.5141" fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="3.19892" height="1.53546"/>
+		<rect x="14.6402" y="17.5301" fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="3.19892" height="1.53546"/>
+		<rect x="20.8845" y="17.4981" fill="#383838" fill-opacity="1" stroke-width="0.2" stroke-linejoin="round" stroke="#383838" stroke-opacity="1" width="3.19892" height="1.53546"/>
+	</g>
+</svg>

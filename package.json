@@ -1,0 +1,134 @@
+{
+  "name": "vscode-arduino",
+  "displayName": "Arduino CLI integration",
+  "description": "What it says on the box. The Arduino extension produced by Microsoft China breaks with monotonous regularity when a new release VS Code uses a different version of Node from the version for which the USB-Native library was compiled. Fixing this was going to be a real mission, but then the Arduino CLI was made available for all three platforms. It does all the native platform stuff, so it wasn't hard to knock up an extension that integrates it into VS Code. This extension deploys all of its dependencies including the Arduino CLI and does not require the Arduino IDE to be present.",
+  "version": "0.0.1",
+  "icon": "chip-light.png",
+  "author": {
+    "name": "Peter Wone",
+    "email": "peter.wone@outlook.com"
+  },
+  "publisher": "pdconsec",
+  "repository": {
+    "type": "git",
+    "url": "https://backplane.visualstudio.com/Arduino/_git/Arduino"
+  },
+  "engines": {
+    "vscode": "^1.49.3"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "category": "%commands.category%",
+        "command": "extension.compile",
+        "title": "%commands.title.compile%"
+      },
+      {
+        "category": "%commands.category%",
+        "command": "extension.deploy",
+        "title": "%commands.title.deploy%"
+      },
+      {
+        "category": "%commands.category%",
+        "command": "extension.parseRate",
+        "title": "Parse serial rate"
+      },
+      {
+        "category": "%commands.category%",
+        "command": "extension.chooseDeploymentMethod",
+        "title": "%commands.title.chooseDeploymentMethod%"
+      },
+      {
+        "category": "%commands.category%",
+        "command": "extension.chooseBoard",
+        "title": "%commands.title.chooseBoard%"
+      },
+      {
+        "category": "%commands.category%",
+        "command": "extension.chooseLibraries",
+        "title": "%commands.title.chooseLibraries%"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "extension.compile",
+          "group": "navigation",
+          "when": "showCompileAndDeployButtonsOnToolbar && resourceExtname == .ino"
+        },
+        {
+          "command": "extension.deploy",
+          "group": "navigation",
+          "when": "showCompileAndDeployButtonsOnToolbar && resourceExtname == .ino"
+        },
+        {
+          "command": "extension.parseRate",
+          "group": "navigation",
+          "when": "showCompileAndDeployButtonsOnToolbar && resourceExtname == .ino"
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "title": "%configuration.title.arduinoCli%",
+        "properties": {
+          "arduinoCli.refreshIntervalLibraryCatalogueMonths": {
+            "type": "number",
+            "description": "%configuration.description.libraryCatalogueRefreshIntervalMonths%",
+            "default": 3
+          },
+          "arduinoCli.path": {
+            "type": "string",
+            "description": "%configuration.description.arduinoCliPath%"
+          },
+          "arduinoCli.selectedBoard": {
+            "type": "object",
+            "description": "%configuration.description.board%"
+          },
+          "arduinoCli.selectedDeploymentMethod": {
+            "type": "object",
+            "description": "%configuration.description.deploymentMethod%"
+          },
+          "arduinoCli.showCompileAndDeployButtonsOnToolbar": {
+            "type": "boolean",
+            "description": "%configuration.description.showButtons%",
+            "default": true
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node ./node_modules/vscode/bin/test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.7.12",
+    "@types/vscode": "^1.49.0",
+    "del": "^5.1.0",
+    "event-stream": "^4.0.1",
+    "gulp": "^4.0.2",
+    "gulp-filter": "^6.0.0",
+    "gulp-sourcemaps": "^2.6.5",
+    "gulp-typescript": "^5.0.1",
+    "run-sequence": "^2.2.1",
+    "tslint": "^5.20.0",
+    "typescript": "^3.6.4",
+    "vsce": "^1.67.1",
+    "vscode-nls-dev": "^3.3.1",
+    "vscode-test": "^1.4.0"
+  },
+  "dependencies": {
+    "vscode-nls": "^4.1.1"
+  }
+}
