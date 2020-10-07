@@ -6,11 +6,9 @@ export class BoardConnection {
   public protocol_label = "";
 }
 export class QuickPickBoardConnection extends QuickPickBase {
-  boardConnection: BoardConnection;
-  constructor(b: BoardConnection) {
+  constructor(public boardConnection?: BoardConnection) {
     super();
-    this.boardConnection = b;
-    this.label = b.address;
-    this.description = b.protocol_label;
+    this.label = boardConnection?.address || "No monitor";
+    this.description = boardConnection?.protocol_label || "";
   }
 }

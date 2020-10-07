@@ -54,6 +54,11 @@
         "category": "%commands.category%",
         "command": "extension.chooseLibraries",
         "title": "%commands.title.chooseLibraries%"
+      },
+      {
+        "category": "%commands.category%",
+        "command": "extension.chooseMonitorBoardConnection",
+        "title": "%commands.title.chooseMonitorBoardConnection%"
       }
     ],
     "menus": {
@@ -91,6 +96,10 @@
           "arduinoCli.selectedBoard": {
             "type": "object",
             "description": "%configuration.description.board%"
+          },
+          "arduinoCli.selectedMonitorBoardConnection": {
+            "type": "object",
+            "description": "%configuration.description.monitorBoardConnection%"
           },
           "arduinoCli.selectedDeploymentMethod": {
             "type": "object",
