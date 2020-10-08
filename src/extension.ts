@@ -8,9 +8,10 @@ import * as child_process from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as nls from 'vscode-nls';
-import { LibraryRelease, QuickPickLibrary, LibraryCatalogueEntry, LibraryCatalogue } from './library';
+import { LibraryRelease, QuickPickLibrary, LibraryCatalogue } from './library';
 import { Core } from './core';
 import { QuickPickBoard } from './board';
+import * as kill from 'tree-kill';
 const localize = nls.config({ messageFormat: nls.MessageFormat.file })();
 const oneMonthMs = 30.43733333 * 24 * 3600 * 1000;
 const libraryCatalogueFilename = "library-catalogue.json";
@@ -20,7 +21,6 @@ let directories: Directories;
 let installedLibraries: LibraryRelease[];
 let refreshIntervalLibraryCatalogueMonths: number;
 var commandArgs: any;
-let selectedBoardConnection: BoardConnection;
 let selectedDeploymentMethod: QuickPickDeploymentMethod;
 let selectedBoard: QuickPickBoard;
 let statusBarItemSelectedBoard: vscode.StatusBarItem;
@@ -81,7 +81,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBarItemSelectedDeploymentMethod);
   if (selectedBoard?.board?.fqbn) {
     getDeploymentMethodsForSelectedBoard();
-    selectedDeploymentMethod = arduinoCliConfig.selectedDeploymentMethod;
+    selectedDeploymentMethod = arduinoCliConfig.selectedDeploymentMethod as QuickPickDeploymentMethod;
+    vscode.commands.executeCommand("setContext", "showFlashButtonOnToolbar", selectedDeploymentMethod.isProgrammer);
     statusBarItemSelectedDeploymentMethod.text = selectedDeploymentMethod?.label || "Choose deployment method";
     statusBarItemSelectedDeploymentMethod.show();
   }
@@ -145,6 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
       .then(async x => {
         if (x) {
           selectedDeploymentMethod = x;
+          vscode.commands.executeCommand("setContext", "showFlashButtonOnToolbar", selectedDeploymentMethod.isProgrammer);
           await config.update("arduinoCli.selectedDeploymentMethod", selectedDeploymentMethod, vscode.ConfigurationTarget.Workspace);
           statusBarItemSelectedDeploymentMethod.text = x.label;
         }
@@ -169,21 +171,70 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.compile', async (cmdArgs: any) => {
+    outputChannel.show(true);
     commandArgs = cmdArgs;
-    outputChannel.appendLine(clit(`compile --fqbn ${selectedBoard.board.fqbn}`));
+    let args = ["compile", "--fqbn", selectedBoard.board.fqbn];
+    let cp = child_process.spawn(cliPath, args, { cwd: getInoPath() });
+    cp.stdout.on("data", (data: any) => outputChannel.append(data.toString()));
+    cp.stderr.on("data", (data: any) => outputChannel.append(data.toString()));
+    cp.on("error", (err: any) => {
+      outputChannel.append(err);
+    });
   });
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.deploy', async (cmdArgs: any) => {
+    outputChannel.show(true);
     commandArgs = cmdArgs;
-    outputChannel.appendLine(clit(`compile --fqbn ${selectedBoard.board.fqbn}`));
-    let deploymentMethod = selectedDeploymentMethod.label.startsWith("COM") ?
-      `--port ${selectedDeploymentMethod.label}` :
-      `--programmer ${(selectedDeploymentMethod.method as Programmer).id}`;
-    outputChannel.appendLine(clit(`upload --fqbn ${selectedBoard.board.fqbn} ${deploymentMethod}`));
+    let args = ["compile", "--fqbn", selectedBoard.board.fqbn];
+    let cp = child_process.spawn(cliPath, args, { cwd: getInoPath() });
+    cp.stdout.on("data", (data: any) => outputChannel.append(`${data}`));
+    cp.stderr.on("data", (data: any) => outputChannel.append(`${data}`));
+    cp.on("error", (err: any) => {
+      outputChannel.append(err);
+    });
+    cp.on("exit", () => {
+      args = ["upload", "--fqbn", selectedBoard.board.fqbn, "--verbose"];
+      if (selectedDeploymentMethod.isProgrammer) {
+        args.push("--programmer");
+        args.push((selectedDeploymentMethod.method as Programmer).id);
+      } else {
+        args.push("--port");
+        args.push((selectedDeploymentMethod.method as BoardConnection).address);
+      }
+      cp = child_process.spawn(cliPath, args, { cwd: getInoPath() });
+      cp.stdout.on("data", (data: any) => outputChannel.append(`${data}`));
+      cp.stderr.on("data", (data: any) => {
+        if (!selectedDeploymentMethod.isProgrammer && data.toString().indexOf("not responding") > 0) {
+          kill(cp.pid);
+          outputChannel.appendLine("Deployment aborted");
+          vscode.window.showWarningMessage(
+            `Your ${selectedBoard.label} is not responding on ${selectedDeploymentMethod.label} which suggests a loose connector or an obsolete bootloader that communicates at a different speed. Check all connectors. To update the bootloader, first set up a hardware programmer and select it as the deployment method. "Flash" will appear beside "Compile" and "Deploy". Arduino-CLI doesn't support specifying upload speed.`,
+            "OK"
+          );
+        } else {
+          outputChannel.append(`${data}`);
+        }
+      });
+      cp.on("error", (err: any) => {
+        outputChannel.append(err);
+      });
+    });
   });
   context.subscriptions.push(disposable);
-  disposable = vscode.commands.registerCommand('extension.parseRate', async (cmdArgs: any) => {
-    let sr = parseRate();
+  disposable = vscode.commands.registerCommand('extension.flash', async (cmdArgs: any) => {
+    outputChannel.show(true);
+    commandArgs = cmdArgs;
+    let args = [
+      "burn-bootloader",
+      "--fqbn", selectedBoard.board.fqbn,
+      "--programmer", (selectedDeploymentMethod.method as Programmer).id
+    ];
+    let cp = child_process.spawn(cliPath, args, { cwd: getInoPath() });
+    cp.stdout.on("data", (data: any) => outputChannel.append(data.toString()));
+    cp.stderr.on("data", (data: any) => outputChannel.append(data.toString()));
+    cp.on("error", (err: any) => {
+      outputChannel.append(err);
+    });
   });
   context.subscriptions.push(disposable);
 }
@@ -233,46 +284,51 @@ function fixSelectedBoard(): boolean {
   }
 }
 export function flashBootloader() {
-  if (selectedDeploymentMethod.label.startsWith("COM")) {
-    vscode.window.showWarningMessage(`You can't use ${selectedDeploymentMethod.label}, you need a hardware programmer to flash the bootloader.`);
-  } else {
+  if (selectedDeploymentMethod.isProgrammer) {
     let progid = (selectedDeploymentMethod.method as Programmer).id;
     outputChannel.appendLine(`Flashing bootloader using ${selectedDeploymentMethod.label}`);
     cli(`burn-bootloader --fqbn ${selectedBoard.board.fqbn} --programmer ${progid}`);
+    outputChannel.appendLine("Bootloader update complete");
+  } else {
+    vscode.window.showWarningMessage(`You can't use ${selectedDeploymentMethod.label}, you need a hardware programmer to flash the bootloader.`);
   }
 }
 export function installCore(coreName: string, install = true) {
-  clit(`core ${install ? "install" : "uninstall"} ${coreName}`);
-  vscode.window.showInformationMessage(`"${coreName}" resources and toolchain are installed and ready.`);
+  let args = ["core", install ? "install" : "uninstall", coreName];
+  let cp = child_process.spawn(cliPath, args, { cwd: getInoPath() });
+  cp.stdout.on("data", (data: any) => outputChannel.append(`${data}`));
+  cp.stderr.on("data", (data: any) => outputChannel.append(`${data}`));
+  cp.on("error", (err: any) => {
+    outputChannel.append(err);
+  }).on("exit", () => {
+    vscode.window.showInformationMessage(`"${coreName}" resources and toolchain are installed and ready.`);
+  });
 }
 export function installLibrary(libName: string, install = true) {
-  clit(`lib ${install ? "install" : "uninstall"} ${libName}`);
-  vscode.window.showInformationMessage(`Library "${libName}" installed and ready. Compiler paths have been updated but you must add a pragma to your code: #include <${libName}.h>`);
-}
-function clit(command: string) {
-  let fqc = `"${cliPath}" ${command}`;
-  let folderName = getInoPath();
-  console.log(`${folderName}> ${fqc}`);
-  outputChannel.appendLine(`${folderName}> ${fqc}`);
-  return child_process.execSync(fqc, { cwd: folderName, encoding: 'utf8' });
+  let args = ["lib", install ? "install" : "uninstall", libName];
+  let cp = child_process.spawn(cliPath, args, { cwd: getInoPath() });
+  cp.stdout.on("data", (data: any) => outputChannel.append(`${data}`));
+  cp.stderr.on("data", (data: any) => outputChannel.append(`${data}`));
+  cp.on("error", (err: any) => {
+    outputChannel.append(err);
+  }).on("exit", () => {
+    vscode.window.showInformationMessage(`Library "${libName}" installed and ready. Compiler paths have been updated but you must add a pragma to your code: #include <${libName}.h>`);
+  });
 }
 function cli(command: string) {
   let fqc = `"${cliPath}" ${command} --format json`;
   let folderName = getInoPath();
   console.log(`${folderName}> ${fqc}`);
   outputChannel.appendLine(`${folderName}> ${fqc}`);
-
-  return JSON.parse(child_process.execSync(fqc, { cwd: folderName, encoding: 'utf8' }));
+  return JSON.parse(child_process.execSync(fqc, { encoding: 'utf8' }));
 }
 function getInoPath() {
   let ed = vscode.window.visibleTextEditors.filter(e => e.document.fileName.toLowerCase().endsWith(".ino"));
-  if (ed.length > 1) {
-    let fn = ed.map(x => path.basename(x.document.fileName));
-    vscode.window.showWarningMessage(`You have ${ed.length} INO files open.`, { modal: true }, ...fn).then(x => {
-      return path.dirname(ed[fn.indexOf(x!)].document.fileName!);
-    });
+  if (ed.length > 0) {
+    return path.dirname(ed[0].document.fileName);
   } else {
-    return path.dirname(ed[0].document.fileName!);
+    let wf = vscode.workspace.workspaceFolders?.find(x => fs.existsSync(path.join(x.uri.fsPath, `${x.name}.ino`)));
+    return wf!.uri.fsPath;
   }
 }
 function getLibraryCatalogue(command: string): Promise<LibraryCatalogue> {

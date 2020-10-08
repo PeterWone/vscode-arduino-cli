@@ -7,6 +7,7 @@ export class SerialMonitor {
   get state(): string {
     return this._childProcess ? "monitoring" : "idle";
   }
+  private buf: string = "";
   public start(rate?: number) {
     if (rate) {
       this.baudrate = rate;
@@ -15,9 +16,9 @@ export class SerialMonitor {
       this.stop();
     }
     if (this.serialPortName !== "No monitor") {
-      this._childProcess = child_process.exec(`/serial-monitor/bin/debug/netcoreapp3.1/serial-monitor ${this.serialPortName} ${this.baudrate}`);
+      this._childProcess = child_process.spawn("d:/serial-monitor/bin/debug/netcoreapp3.1/serial-monitor", [this.serialPortName, this.baudrate.toString()]);
       this._childProcess.stdout.on("data", (data: any) => {
-        this.outputChannel.append(data);
+        this.outputChannel.append(data.toString());
       });
       this._childProcess.on("error", (err: any) => {
         this.outputChannel.append(err);

@@ -1,7 +1,7 @@
 {
   "name": "vscode-arduino",
   "displayName": "Arduino CLI integration",
-  "description": "What it says on the box. The Arduino extension produced by Microsoft China breaks with monotonous regularity when a new release VS Code uses a different version of Node from the version for which the USB-Native library was compiled. Fixing this was going to be a real mission, but then the Arduino CLI was made available for all three platforms. It does all the native platform stuff, so it wasn't hard to knock up an extension that integrates it into VS Code. This extension deploys all of its dependencies including the Arduino CLI and does not require the Arduino IDE to be present.",
+  "description": "Fixes major problems with the Arduino extension produced by Microsoft China, for which serial connectivity breaks every time a release of VS Code changes Node version. Fixing this was going to be a real mission, but then the Arduino CLI was made available for all three platforms. It does all the native platform stuff, so it wasn't hard to knock up an extension that integrates it into VS Code. This extension deploys all of its dependencies including the Arduino CLI and does not require the Arduino IDE to be present.",
   "version": "0.0.1",
   "icon": "chip-light.png",
   "author": {
@@ -20,7 +20,7 @@
     "Programming Languages"
   ],
   "activationEvents": [
-    "*"
+    "workspaceContains:*.ino"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -37,8 +37,8 @@
       },
       {
         "category": "%commands.category%",
-        "command": "extension.parseRate",
-        "title": "Parse serial rate"
+        "command": "extension.flash",
+        "title": "%commands.title.flash%"
       },
       {
         "category": "%commands.category%",
@@ -74,9 +74,9 @@
           "when": "showCompileAndDeployButtonsOnToolbar && resourceExtname == .ino"
         },
         {
-          "command": "extension.parseRate",
+          "command": "extension.flash",
           "group": "navigation",
-          "when": "showCompileAndDeployButtonsOnToolbar && resourceExtname == .ino"
+          "when": "showFlashButtonOnToolbar && resourceExtname == .ino"
         }
       ]
     },
@@ -138,6 +138,7 @@
     "vscode-test": "^1.4.0"
   },
   "dependencies": {
+    "tree-kill": "^1.2.2",
     "vscode-nls": "^4.1.1"
   }
 }

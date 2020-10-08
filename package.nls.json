@@ -2,6 +2,7 @@
   "commands.category": "Arduino-CLI",
   "commands.title.compile": "Compile",
   "commands.title.deploy": "Deploy",
+  "commands.title.flash": "Flash",
   "commands.title.chooseDeploymentMethod": "Choose deployment method",
   "commands.title.chooseMonitorBoardConnection": "Choose monitor board connection",
   "commands.title.chooseBoard": "Choose board",

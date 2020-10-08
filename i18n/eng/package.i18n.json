@@ -4,6 +4,7 @@
   "commands.title.chooseDeploymentMethod": "Choose deployment method",
   "commands.title.compile": "Compile",
   "commands.title.deploy": "Deploy",
+  "commands.title.flash": "Flash",
   "commands.title.chooseMonitorBoardConnection": "Choose monitor board connection",
   "configuration.title.board": "Board",
   "configuration.title.arduinoCli": "Arduino-CLI",
