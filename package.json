@@ -109,6 +109,16 @@
             "type": "boolean",
             "description": "%configuration.description.showButtons%",
             "default": true
+          },
+          "arduinoCli.verboseCompile": {
+            "type": "boolean",
+            "markdownDescription": "%configuration.description.verboseCompile%",
+            "default": false
+          },
+          "arduinoCli.verboseDeploy": {
+            "type": "boolean",
+            "markdownDescription": "%configuration.description.verboseDeploy%",
+            "default": false
           }
         }
       }

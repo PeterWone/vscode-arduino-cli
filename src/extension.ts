@@ -17,7 +17,7 @@ const oneMonthMs = 30.43733333 * 24 * 3600 * 1000;
 const libraryCatalogueFilename = "library-catalogue.json";
 const browserLaunchMap: any = { darwin: "open", linux: "xdg-open", win32: "start" };
 let cliPath: string;
-let directories: Directories;
+// let directories: Directories;
 let installedLibraries: LibraryRelease[];
 let refreshIntervalLibraryCatalogueMonths: number;
 var commandArgs: any;
@@ -33,6 +33,7 @@ let statusBarItemSelectedDeploymentMethod: vscode.StatusBarItem;
 let outputChannel = vscode.window.createOutputChannel("Arduino CLI");
 let serialChannel = vscode.window.createOutputChannel("Serial monitor");
 let serialMonitor: SerialMonitor;
+let arduinoCliConfig: vscode.WorkspaceConfiguration;
 let byLabel = (a: any, b: any) => {
   let A = a.label.toUpperCase();
   let B = b.label.toUpperCase();
@@ -41,12 +42,12 @@ let byLabel = (a: any, b: any) => {
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(checkConfigurationChange));
   let config = vscode.workspace.getConfiguration();
-  let arduinoCliConfig = vscode.workspace.getConfiguration("arduinoCli");
+  arduinoCliConfig = vscode.workspace.getConfiguration("arduinoCli");
   refreshIntervalLibraryCatalogueMonths = arduinoCliConfig.refreshIntervalLibraryCatalogueMonths;
   vscode.commands.executeCommand("setContext", "showCompileAndDeployButtonsOnToolbar", arduinoCliConfig.showCompileAndDeployButtonsOnToolbar);
   cliPath = arduinoCliConfig.path;
   loadQuickPickBoards();
-  installedLibraries = cli("lib list");
+  installedLibraries = cliSync("lib list");
   getLibraryCatalogue("lib search").then(cat => {
     availableLibraries = cat.libraries
       .map(library => {
@@ -56,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
       })
       .sort(byLabel);
   });
-  directories = cli("config dump").directories as Directories;
+  // directories = cliSync("config dump").directories as Directories;
 
   selectedBoard = arduinoCliConfig.selectedBoard;
   statusBarItemSelectedBoard = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -69,11 +70,14 @@ export function activate(context: vscode.ExtensionContext) {
 
   selectedMonitorBoardConnection = arduinoCliConfig.selectedMonitorBoardConnection;
   serialMonitor = new SerialMonitor(serialChannel);
+  serialMonitor.serialPortName = selectedMonitorBoardConnection.boardConnection?.address || "No monitor";
   statusBarItemMonitorBoardConnection = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItemMonitorBoardConnection.text = selectedMonitorBoardConnection?.label || "No monitor";
   statusBarItemMonitorBoardConnection.tooltip = "Serial Monitor";
   statusBarItemMonitorBoardConnection.command = "extension.chooseMonitorBoardConnection";
+  context.subscriptions.push(statusBarItemMonitorBoardConnection);
   statusBarItemMonitorBoardConnection.show();
+  serialMonitor.start(parseRate());
 
   statusBarItemSelectedDeploymentMethod = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItemSelectedDeploymentMethod.tooltip = "Deployment method";
@@ -122,7 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.chooseMonitorBoardConnection', async (cmdArgs: any) => {
-    let availableBoardConnections = (cli("board list") as BoardConnection[])
+    let availableBoardConnections = (cliSync("board list") as BoardConnection[])
       .map(bc => new QuickPickBoardConnection(bc));
     availableBoardConnections.unshift(new QuickPickBoardConnection());
     vscode.window.showQuickPick(availableBoardConnections)
@@ -136,10 +140,12 @@ export function activate(context: vscode.ExtensionContext) {
             serialMonitor.stop();
           } else {
             serialMonitor.start(parseRate());
+            serialChannel.show(true);
           }
         }
       });
   });
+  context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.chooseDeploymentMethod', async (cmdArgs: any) => {
     commandArgs = cmdArgs;
     vscode.window.showQuickPick(availableDeploymentMethods)
@@ -172,8 +178,12 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.compile', async (cmdArgs: any) => {
     outputChannel.show(true);
+    arduinoCliConfig = vscode.workspace.getConfiguration("arduinoCli");
     commandArgs = cmdArgs;
     let args = ["compile", "--fqbn", selectedBoard.board.fqbn];
+    if (arduinoCliConfig.verboseCompile) {
+      args.push("--verbose");
+    }
     let cp = child_process.spawn(cliPath, args, { cwd: getInoPath() });
     cp.stdout.on("data", (data: any) => outputChannel.append(data.toString()));
     cp.stderr.on("data", (data: any) => outputChannel.append(data.toString()));
@@ -183,6 +193,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.deploy', async (cmdArgs: any) => {
+    arduinoCliConfig = vscode.workspace.getConfiguration("arduinoCli");
     outputChannel.show(true);
     commandArgs = cmdArgs;
     let args = ["compile", "--fqbn", selectedBoard.board.fqbn];
@@ -193,7 +204,15 @@ export function activate(context: vscode.ExtensionContext) {
       outputChannel.append(err);
     });
     cp.on("exit", () => {
-      args = ["upload", "--fqbn", selectedBoard.board.fqbn, "--verbose"];
+      let restartSerialMonitorAfterDeploy = false;
+      if (!selectedDeploymentMethod.isProgrammer) {
+        restartSerialMonitorAfterDeploy = selectedMonitorBoardConnection.label !== "No monitor";
+        serialMonitor.stop();
+      }
+      args = ["upload", "--fqbn", selectedBoard.board.fqbn];
+      if (arduinoCliConfig.verboseDeploy) {
+        args.push("--verbose");
+      }
       if (selectedDeploymentMethod.isProgrammer) {
         args.push("--programmer");
         args.push((selectedDeploymentMethod.method as Programmer).id);
@@ -208,7 +227,7 @@ export function activate(context: vscode.ExtensionContext) {
           kill(cp.pid);
           outputChannel.appendLine("Deployment aborted");
           vscode.window.showWarningMessage(
-            `Your ${selectedBoard.label} is not responding on ${selectedDeploymentMethod.label} which suggests a loose connector or an obsolete bootloader that communicates at a different speed. Check all connectors. To update the bootloader, first set up a hardware programmer and select it as the deployment method. "Flash" will appear beside "Compile" and "Deploy". Arduino-CLI doesn't support specifying upload speed.`,
+            `Your ${selectedBoard.label} is not responding on ${selectedDeploymentMethod.label}. This suggests a loose connector, or an obsolete bootloader using a different baudrate. Check the list of boards for a similar name with "old" in it. Check all connectors.\n\nTo update the bootloader, set up a hardware programmer. When you select it as the deployment method, "Flash" will appear beside "Compile" and "Deploy".`,
             "OK"
           );
         } else {
@@ -217,6 +236,11 @@ export function activate(context: vscode.ExtensionContext) {
       });
       cp.on("error", (err: any) => {
         outputChannel.append(err);
+      });
+      cp.on("exit", () => {
+        if (restartSerialMonitorAfterDeploy) {
+          serialMonitor.start();
+        }
       });
     });
   });
@@ -239,24 +263,22 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
 }
 function parseRate(): number | undefined {
-  let src = vscode.window.activeTextEditor?.document?.getText();
+  let src = getInoDoc()?.getText();
   if (src) {
     let matches = /Serial.begin\((\d+)\);/.exec(src);
     if (matches?.length) {
-      let rate = parseInt(matches[1]);
-      return rate;
+      return parseInt(matches[1]);
     }
   }
 }
-
 function getDeploymentMethodsForSelectedBoard() {
   // get the programmers for that board
-  let progs = cli(`board details --fqbn ${selectedBoard.board.fqbn} --list-programmers`).programmers as Programmer[];
+  let progs = cliSync(`board details --fqbn ${selectedBoard.board.fqbn} --list-programmers`).programmers as Programmer[];
   if (progs) {
     availableDeploymentMethods = progs.map(p => new QuickPickDeploymentMethod(p)).sort(byLabel);
   }
   // and any detected USB serial connections
-  let boardConnections = cli("board list") as BoardConnection[];
+  let boardConnections = cliSync("board list") as BoardConnection[];
   let bcons = boardConnections.map(bc => new QuickPickDeploymentMethod(bc));
   availableDeploymentMethods.splice(0, 0, ...bcons);
 }
@@ -270,7 +292,7 @@ function checkConfigurationChange(e: vscode.ConfigurationChangeEvent) {
 }
 function loadQuickPickBoards() {
   availableBoards.length = 0;
-  let coresearch = cli("core search") as Core[];
+  let coresearch = cliSync("core search") as Core[];
   coresearch.forEach(c => c.Boards.forEach(b => availableBoards.push(new QuickPickBoard(b, c))));
   availableBoards.sort(byLabel);
 }
@@ -281,16 +303,6 @@ function fixSelectedBoard(): boolean {
     return true;
   } else {
     return false;
-  }
-}
-export function flashBootloader() {
-  if (selectedDeploymentMethod.isProgrammer) {
-    let progid = (selectedDeploymentMethod.method as Programmer).id;
-    outputChannel.appendLine(`Flashing bootloader using ${selectedDeploymentMethod.label}`);
-    cli(`burn-bootloader --fqbn ${selectedBoard.board.fqbn} --programmer ${progid}`);
-    outputChannel.appendLine("Bootloader update complete");
-  } else {
-    vscode.window.showWarningMessage(`You can't use ${selectedDeploymentMethod.label}, you need a hardware programmer to flash the bootloader.`);
   }
 }
 export function installCore(coreName: string, install = true) {
@@ -315,17 +327,17 @@ export function installLibrary(libName: string, install = true) {
     vscode.window.showInformationMessage(`Library "${libName}" installed and ready. Compiler paths have been updated but you must add a pragma to your code: #include <${libName}.h>`);
   });
 }
-function cli(command: string) {
+function cliSync(command: string) {
   let fqc = `"${cliPath}" ${command} --format json`;
-  let folderName = getInoPath();
-  console.log(`${folderName}> ${fqc}`);
-  outputChannel.appendLine(`${folderName}> ${fqc}`);
-  return JSON.parse(child_process.execSync(fqc, { encoding: 'utf8' }));
+  return JSON.parse(child_process.execSync(fqc, { cwd: getInoPath(), encoding: 'utf8' }));
+}
+function getInoDoc() {
+  return vscode.window.visibleTextEditors.find(e => e.document.fileName.toLowerCase().endsWith(".ino"))?.document;
 }
 function getInoPath() {
-  let ed = vscode.window.visibleTextEditors.filter(e => e.document.fileName.toLowerCase().endsWith(".ino"));
-  if (ed.length > 0) {
-    return path.dirname(ed[0].document.fileName);
+  let ed = getInoDoc();
+  if (ed) {
+    return path.dirname(ed.fileName);
   } else {
     let wf = vscode.workspace.workspaceFolders?.find(x => fs.existsSync(path.join(x.uri.fsPath, `${x.name}.ino`)));
     return wf!.uri.fsPath;

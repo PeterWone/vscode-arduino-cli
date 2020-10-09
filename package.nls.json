@@ -9,6 +9,8 @@
   "commands.title.chooseLibraries": "Choose libraries",
   "configuration.title.arduinoCli": "Arduino-CLI",
   "configuration.description.board": "The type of Arduino you are using",
+  "configuration.description.verboseCompile": "Apply the `--verbose` option when compiling",
+  "configuration.description.verboseDeploy": "Apply the `--verbose` option when deploying",
   "configuration.description.monitorBoardConnection": "Monitor board connection",
   "configuration.description.deploymentMethod": "The hardware programmer or the USB serial port that will deploy compiled code to your Arduino",
   "configuration.description.showButtons": "Show Compile and Deploy buttons on the toolbar",
