@@ -169,10 +169,17 @@ export function activate(context: vscode.ExtensionContext) {
       placeHolder: "Find your board by make, model or chipset"
     })
       .then(selectedLibraries => {
+        // add selected libraries that are not installed
         selectedLibraries!.forEach(lib => {
           lib.picked = true;
           if (!installedLibraries.find(ilib => ilib.library.name === lib.label)) {
             installLibrary(lib.label, true);
+          }
+        });
+        // remove installed libraries that are not selected
+        installedLibraries.forEach(lib => {
+          if (!selectedLibraries?.find(slib => slib.library.name === lib.library.name)) {
+            installLibrary(lib.library.name, false);
           }
         });
       });
@@ -342,7 +349,8 @@ async function cli(command: string) {
   return JSON.parse(child_process.execSync(fqc, { cwd: getInoPath(), encoding: 'utf8' }));
 }
 function getInoDoc() {
-  return vscode.window.visibleTextEditors.find(e => e.document.fileName.toLowerCase().endsWith(".ino"))?.document;
+  return vscode.window.visibleTextEditors
+    .find(e => e.document.fileName.toLowerCase().endsWith(".ino"))?.document;
 }
 function getInoPath() {
   let ed = getInoDoc();
