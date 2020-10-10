@@ -17,7 +17,7 @@ const oneMonthMs = 30.43733333 * 24 * 3600 * 1000;
 const libraryCatalogueFilename = "library-catalogue.json";
 const browserLaunchMap: any = { darwin: "open", linux: "xdg-open", win32: "start" };
 let cliPath: string;
-// let directories: Directories;
+let directories: Directories;
 let installedLibraries: LibraryRelease[];
 let refreshIntervalLibraryCatalogueMonths: number;
 var commandArgs: any;
@@ -47,17 +47,19 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand("setContext", "showCompileAndDeployButtonsOnToolbar", arduinoCliConfig.showCompileAndDeployButtonsOnToolbar);
   cliPath = arduinoCliConfig.path;
   loadQuickPickBoards();
-  installedLibraries = cliSync("lib list");
-  getLibraryCatalogue("lib search").then(cat => {
-    availableLibraries = cat.libraries
-      .map(library => {
-        let qpl = new QuickPickLibrary(library);
-        qpl.picked = !!installedLibraries.find(ilib => ilib.library.name === qpl.label);
-        return qpl;
-      })
-      .sort(byLabel);
+  cli("lib list").then(x => {
+    installedLibraries = x;
+    getLibraryCatalogue("lib search").then(cat => {
+      availableLibraries = cat.libraries
+        .map(library => {
+          let qpl = new QuickPickLibrary(library);
+          qpl.picked = !!installedLibraries.find(ilib => ilib.library.name === qpl.label);
+          return qpl;
+        })
+        .sort(byLabel);
+    });
   });
-  // directories = cliSync("config dump").directories as Directories;
+  cli("config dump").then(x => directories = x.directories);
 
   selectedBoard = arduinoCliConfig.selectedBoard;
   statusBarItemSelectedBoard = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -126,7 +128,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.chooseMonitorBoardConnection', async (cmdArgs: any) => {
-    let availableBoardConnections = (cliSync("board list") as BoardConnection[])
+    let availableBoardConnections = (await cli("board list") as BoardConnection[])
       .map(bc => new QuickPickBoardConnection(bc));
     availableBoardConnections.unshift(new QuickPickBoardConnection());
     vscode.window.showQuickPick(availableBoardConnections)
@@ -227,7 +229,7 @@ export function activate(context: vscode.ExtensionContext) {
           kill(cp.pid);
           outputChannel.appendLine("Deployment aborted");
           vscode.window.showWarningMessage(
-            `Your ${selectedBoard.label} is not responding on ${selectedDeploymentMethod.label}. This suggests a loose connector, or an obsolete bootloader using a different baudrate. Check the list of boards for a similar name with "old" in it. Check all connectors.\n\nTo update the bootloader, set up a hardware programmer. When you select it as the deployment method, "Flash" will appear beside "Compile" and "Deploy".`,
+            `Your ${selectedBoard.label} is not responding on ${selectedDeploymentMethod.label}. This could be a loose connector, the wrong port or a different version of your board that uses a different baudrate. Check the list of boards for a similar name with "old" in it. Check all connectors.\n\nTo update the bootloader, set up a hardware programmer. When you select it as the deployment method, "Flash" will appear beside "Compile" and "Deploy".`,
             "OK"
           );
         } else {
@@ -273,14 +275,20 @@ function parseRate(): number | undefined {
 }
 function getDeploymentMethodsForSelectedBoard() {
   // get the programmers for that board
-  let progs = cliSync(`board details --fqbn ${selectedBoard.board.fqbn} --list-programmers`).programmers as Programmer[];
-  if (progs) {
-    availableDeploymentMethods = progs.map(p => new QuickPickDeploymentMethod(p)).sort(byLabel);
-  }
-  // and any detected USB serial connections
-  let boardConnections = cliSync("board list") as BoardConnection[];
-  let bcons = boardConnections.map(bc => new QuickPickDeploymentMethod(bc));
-  availableDeploymentMethods.splice(0, 0, ...bcons);
+  let progs: Programmer[] = [];
+  cli(`board details --fqbn ${selectedBoard.board.fqbn} --list-programmers`).then(x => {
+    progs = x.programmers;
+    if (progs) {
+      availableDeploymentMethods = progs.map(p => new QuickPickDeploymentMethod(p)).sort(byLabel);
+    }
+    // and any detected USB serial connections
+    let boardConnections: BoardConnection[];
+    cli("board list").then(x => {
+      boardConnections = x;
+      let bcons = boardConnections.map(bc => new QuickPickDeploymentMethod(bc));
+      availableDeploymentMethods.splice(0, 0, ...bcons);
+    });
+  });
 }
 function checkConfigurationChange(e: vscode.ConfigurationChangeEvent) {
   if (e.affectsConfiguration("arduinoCli.showCompileAndDeployButtonsOnToolbar")) {
@@ -292,9 +300,11 @@ function checkConfigurationChange(e: vscode.ConfigurationChangeEvent) {
 }
 function loadQuickPickBoards() {
   availableBoards.length = 0;
-  let coresearch = cliSync("core search") as Core[];
-  coresearch.forEach(c => c.Boards.forEach(b => availableBoards.push(new QuickPickBoard(b, c))));
-  availableBoards.sort(byLabel);
+  cli("core search").then((x: Core[]) => {
+    x.forEach(c => c.Boards.forEach(b => availableBoards.push(new QuickPickBoard(b, c))));
+    availableBoards.sort(byLabel);
+  });
+
 }
 function fixSelectedBoard(): boolean {
   let found = availableBoards.find(b => b.board.name === selectedBoard.board.name);
@@ -327,7 +337,7 @@ export function installLibrary(libName: string, install = true) {
     vscode.window.showInformationMessage(`Library "${libName}" installed and ready. Compiler paths have been updated but you must add a pragma to your code: #include <${libName}.h>`);
   });
 }
-function cliSync(command: string) {
+async function cli(command: string) {
   let fqc = `"${cliPath}" ${command} --format json`;
   return JSON.parse(child_process.execSync(fqc, { cwd: getInoPath(), encoding: 'utf8' }));
 }
