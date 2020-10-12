@@ -59,6 +59,11 @@
         "category": "%commands.category%",
         "command": "extension.chooseMonitorBoardConnection",
         "title": "%commands.title.chooseMonitorBoardConnection%"
+      },
+      {
+        "category": "%commands.category%",
+        "command": "extension.redetectBoardConnections",
+        "title": "%commands.title.redetectBoardConnections%"
       }
     ],
     "menus": {
@@ -91,6 +96,7 @@
           },
           "arduinoCli.path": {
             "type": "string",
+            "scope": "machine",
             "description": "%configuration.description.arduinoCliPath%"
           },
           "arduinoCli.selectedBoard": {
@@ -119,6 +125,17 @@
             "type": "boolean",
             "markdownDescription": "%configuration.description.verboseDeploy%",
             "default": false
+          },
+          "arduinoCli.detection.alwaysDetectBoardConnections": {
+            "type": "boolean",
+            "markdownDescription": "%configuration.description.alwaysDetectBoardConnections%",
+            "default": true
+          },
+          "arduinoCli.detection.warnAboutDetectionLag": {
+            "type": "boolean",
+            "markdownDescription": "%configuration.description.warnAboutDetectionLag%",
+            "default": true,
+            "when": false
           }
         }
       }
@@ -149,6 +166,7 @@
   },
   "dependencies": {
     "tree-kill": "^1.2.2",
-    "vscode-nls": "^4.1.1"
+    "vscode-nls": "^4.1.1",
+    "vscode-nls-i18n": "^0.2.0"
   }
 }

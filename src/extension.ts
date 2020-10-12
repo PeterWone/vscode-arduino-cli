@@ -7,12 +7,13 @@ import * as vscode from 'vscode';
 import * as child_process from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import * as nls from 'vscode-nls';
+// import * as nls from 'vscode-nls';
+import * as i18n from "vscode-nls-i18n";
 import { LibraryRelease, QuickPickLibrary, LibraryCatalogue } from './library';
 import { Core } from './core';
 import { QuickPickBoard } from './board';
 import * as kill from 'tree-kill';
-const localize = nls.config({ messageFormat: nls.MessageFormat.file })();
+// const localize = nls.config({ messageFormat: nls.MessageFormat.file })();
 const oneMonthMs = 30.43733333 * 24 * 3600 * 1000;
 const libraryCatalogueFilename = "library-catalogue.json";
 const browserLaunchMap: any = { darwin: "open", linux: "xdg-open", win32: "start" };
@@ -26,6 +27,7 @@ let selectedBoard: QuickPickBoard;
 let statusBarItemSelectedBoard: vscode.StatusBarItem;
 let statusBarItemMonitorBoardConnection: vscode.StatusBarItem;
 let selectedMonitorBoardConnection: QuickPickBoardConnection;
+let availableBoardConnections: QuickPickBoardConnection[] = [];
 let availableBoards: QuickPickBoard[] = [];
 let availableLibraries: QuickPickLibrary[] = [];
 let availableDeploymentMethods: QuickPickDeploymentMethod[] = [];
@@ -40,12 +42,26 @@ let byLabel = (a: any, b: any) => {
   return A < B ? -1 : A > B ? 1 : 0;
 };
 export function activate(context: vscode.ExtensionContext) {
+  i18n.init(context.extensionPath);
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(checkConfigurationChange));
-  let config = vscode.workspace.getConfiguration();
   arduinoCliConfig = vscode.workspace.getConfiguration("arduinoCli");
+  if (arduinoCliConfig.warnAboutDetectionLag && arduinoCliConfig.alwaysDetectBoardConnections) {
+    let msg = i18n.localize("warning.detectionLag.message");
+    let stopTellingMe = i18n.localize("warning.detectionLag.stopTellingMe");
+    let close = i18n.localize("warning.detectionLag.close");
+    vscode.window.showWarningMessage(msg, stopTellingMe, close)
+      .then(async button => {
+        if (button === stopTellingMe) {
+          await arduinoCliConfig.update("warnAboutDetectionLag", false, vscode.ConfigurationTarget.Workspace);
+        }
+      });
+  }
+  cliPath = arduinoCliConfig.path;
+  cli("board list").then((x: BoardConnection[]) =>
+    availableBoardConnections = x.map(bc => new QuickPickBoardConnection(bc))
+  );
   refreshIntervalLibraryCatalogueMonths = arduinoCliConfig.refreshIntervalLibraryCatalogueMonths;
   vscode.commands.executeCommand("setContext", "showCompileAndDeployButtonsOnToolbar", arduinoCliConfig.showCompileAndDeployButtonsOnToolbar);
-  cliPath = arduinoCliConfig.path;
   loadQuickPickBoards();
   cli("lib list").then(x => {
     installedLibraries = x;
@@ -74,7 +90,7 @@ export function activate(context: vscode.ExtensionContext) {
   serialMonitor = new SerialMonitor(serialChannel);
   serialMonitor.serialPortName = selectedMonitorBoardConnection.boardConnection?.address || "No monitor";
   statusBarItemMonitorBoardConnection = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  statusBarItemMonitorBoardConnection.text = selectedMonitorBoardConnection?.label || "No monitor";
+  statusBarItemMonitorBoardConnection.text = `M:${selectedMonitorBoardConnection?.label}` || "No monitor";
   statusBarItemMonitorBoardConnection.tooltip = "Serial Monitor";
   statusBarItemMonitorBoardConnection.command = "extension.chooseMonitorBoardConnection";
   context.subscriptions.push(statusBarItemMonitorBoardConnection);
@@ -89,7 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
     getDeploymentMethodsForSelectedBoard();
     selectedDeploymentMethod = arduinoCliConfig.selectedDeploymentMethod as QuickPickDeploymentMethod;
     vscode.commands.executeCommand("setContext", "showFlashButtonOnToolbar", selectedDeploymentMethod.isProgrammer);
-    statusBarItemSelectedDeploymentMethod.text = selectedDeploymentMethod?.label || "Choose deployment method";
+    statusBarItemSelectedDeploymentMethod.text = `D:${selectedDeploymentMethod?.label || "NOT SET"}`;
     statusBarItemSelectedDeploymentMethod.show();
   }
 
@@ -113,9 +129,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
           }
           if (selectedBoard.board.fqbn) {
-            await config.update("arduinoCli.selectedBoard", selectedBoard, vscode.ConfigurationTarget.Workspace);
+            await arduinoCliConfig.update("selectedBoard", selectedBoard, vscode.ConfigurationTarget.Workspace);
             statusBarItemSelectedBoard.text = selectedBoard.board.name;
-            statusBarItemSelectedDeploymentMethod.text = "Choose deployment method";
+            statusBarItemSelectedDeploymentMethod.text = "D:NOT SET";
             getDeploymentMethodsForSelectedBoard();
             statusBarItemSelectedDeploymentMethod.show();
             vscode.commands.executeCommand('extension.chooseDeploymentMethod');
@@ -128,15 +144,17 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.chooseMonitorBoardConnection', async (cmdArgs: any) => {
-    let availableBoardConnections = (await cli("board list") as BoardConnection[])
-      .map(bc => new QuickPickBoardConnection(bc));
-    availableBoardConnections.unshift(new QuickPickBoardConnection());
+    arduinoCliConfig = vscode.workspace.getConfiguration("arduinoCli");
+    if (arduinoCliConfig.alwaysDetectBoardConnections) {
+      availableBoardConnections = (await cli("board list") as BoardConnection[])
+        .map(bc => new QuickPickBoardConnection(bc));
+    }
     vscode.window.showQuickPick(availableBoardConnections)
       .then(async x => {
         if (x) {
           selectedMonitorBoardConnection = x;
-          await config.update("arduinoCli.selectedMonitorBoardConnection", selectedMonitorBoardConnection, vscode.ConfigurationTarget.Workspace);
-          statusBarItemMonitorBoardConnection.text = selectedMonitorBoardConnection.label;
+          await arduinoCliConfig.update("selectedMonitorBoardConnection", selectedMonitorBoardConnection, vscode.ConfigurationTarget.Workspace);
+          statusBarItemMonitorBoardConnection.text = `M:${selectedMonitorBoardConnection.label}`;
           serialMonitor.serialPortName = selectedMonitorBoardConnection.label;
           if (selectedMonitorBoardConnection.label === "No monitor") {
             serialMonitor.stop();
@@ -150,13 +168,17 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.chooseDeploymentMethod', async (cmdArgs: any) => {
     commandArgs = cmdArgs;
+    arduinoCliConfig = vscode.workspace.getConfiguration("arduinoCli");
+    if (arduinoCliConfig.alwaysDetectBoardConnections) {
+      getDeploymentMethodsForSelectedBoard();
+    }
     vscode.window.showQuickPick(availableDeploymentMethods)
       .then(async x => {
         if (x) {
           selectedDeploymentMethod = x;
           vscode.commands.executeCommand("setContext", "showFlashButtonOnToolbar", selectedDeploymentMethod.isProgrammer);
-          await config.update("arduinoCli.selectedDeploymentMethod", selectedDeploymentMethod, vscode.ConfigurationTarget.Workspace);
-          statusBarItemSelectedDeploymentMethod.text = x.label;
+          await arduinoCliConfig.update("selectedDeploymentMethod", selectedDeploymentMethod, vscode.ConfigurationTarget.Workspace);
+          statusBarItemSelectedDeploymentMethod.text = `D:${x.label}`;
         }
       });
   });

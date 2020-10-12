@@ -3,17 +3,21 @@ import { BoardConnection } from './board-connection';
 import { Programmer } from './programmer';
 export class QuickPickDeploymentMethod extends QuickPickBase {
   public isProgrammer: boolean;
-  constructor(public method: Programmer | BoardConnection) {
+  get asProgrammer(): Programmer { return this.method as Programmer; }
+  get asBoardConnection(): BoardConnection { return this.method as BoardConnection; }
+  constructor(public method: any) {
     super();
-    if ("address" in method) {
-      this.label = (method as BoardConnection).address;
-      this.description = (method as BoardConnection).protocol_label;
-      this.isProgrammer = false;
-    } else {
-      this.label = (method as Programmer).name;
-      this.description = "";
-      this.isProgrammer = true;
-    }
+    this.isProgrammer = "platform" in method;
+    this.label = this.asBoardConnection.address || this.asProgrammer.name;
+    this.description = this.asBoardConnection.protocol_label || this.asProgrammer.platform;
   }
 
+}
+
+export class Command {
+  constructor(
+    public label: string,
+    public action: () => void,
+    public description: string = ""
+  ) { }
 }

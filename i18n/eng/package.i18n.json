@@ -6,8 +6,10 @@
   "commands.title.deploy": "Deploy",
   "commands.title.flash": "Flash",
   "commands.title.chooseMonitorBoardConnection": "Choose monitor board connection",
+  "commands.title.redetectBoardConnections": "Redetect board connections",
   "configuration.title.board": "Board",
   "configuration.title.arduinoCli": "Arduino-CLI",
+  "configuration.description.alwaysDetectBoardConnections": "By default, board connections are redetected every time the list is shown, causing a perceptible delay before it appears. If you disable this, detection will occur once at startup and the list will appear instantly. This is fine until you change USB ports. If that happens, press `F1` and run `Arduino-CLI: Redetect Board Connections`.",
   "configuration.description.board": "The type of Arduino you are using",
   "configuration.description.verboseCompile": "Apply the `--verbose` option when compiling",
   "configuration.description.verboseDeploy": "Apply the `--verbose` option when deploying",
@@ -15,5 +17,9 @@
   "configuration.description.deploymentMethod": "The hardware programmer or the USB serial port that will deploy compiled code to your Arduino",
   "configuration.description.showButtons": "Show Compile and Deploy buttons on the toolbar",
   "configuration.description.arduinoCliPath": "Absolute path to the Arduino-CLI executable",
-  "configuration.description.libraryCatalogueRefreshIntervalMonths": "The number of months between refreshes of your library catalogue."
+  "configuration.description.libraryCatalogueRefreshIntervalMonths": "The number of months between refreshes of your library catalogue.",
+  "configuration.description.warnAboutDetectionLag": "On startup, if `always detect board connections` is enabled, warn about the delay it causes.",
+  "warning.detectionLag.message": "Your system is configured to scan hardware every time, causing a perceptible delay before the board connection list appears. If you disable this in settings, detection will occur once at startup and the list will appear instantly, but you will need to manually refresh if you you connect with a different USB port.",
+  "warning.detectionLag.stopTellingMe": "I know, stop telling me",
+  "warning.detectionLag.close": "Close"
 }
