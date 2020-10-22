@@ -1,9 +1,9 @@
 {
-  "name": "vscode-arduino",
+  "name": "vscode-arduino-cli",
   "displayName": "Arduino CLI integration",
-  "description": "Fixes major problems with the Arduino extension produced by Microsoft China, for which serial connectivity breaks every time a release of VS Code changes Node version. Fixing this was going to be a real mission, but then the Arduino CLI was made available for all three platforms. It does all the native platform stuff, so it wasn't hard to knock up an extension that integrates it into VS Code. This extension deploys all of its dependencies including the Arduino CLI and does not require the Arduino IDE to be present.",
-  "version": "0.0.1",
-  "icon": "chip-light.png",
+  "description": "Fixes the Serial problem. Does not require the Arduino IDE.",
+  "version": "0.0.2",
+  "icon": "chip-dark.png",
   "author": {
     "name": "Peter Wone",
     "email": "peter.wone@outlook.com"
@@ -11,7 +11,7 @@
   "publisher": "pdconsec",
   "repository": {
     "type": "git",
-    "url": "https://backplane.visualstudio.com/Arduino/_git/Arduino"
+    "url": "https://github.com/PeterWone/vscode-arduino-cli"
   },
   "engines": {
     "vscode": "^1.49.3"

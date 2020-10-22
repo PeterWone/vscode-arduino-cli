@@ -36,6 +36,7 @@ let outputChannel = vscode.window.createOutputChannel("Arduino CLI");
 let serialChannel = vscode.window.createOutputChannel("Serial monitor");
 let serialMonitor: SerialMonitor;
 let arduinoCliConfig: vscode.WorkspaceConfiguration;
+// someArray.sort(byLabel)
 let byLabel = (a: any, b: any) => {
   let A = a.label.toUpperCase();
   let B = b.label.toUpperCase();
@@ -95,7 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
   statusBarItemMonitorBoardConnection.command = "extension.chooseMonitorBoardConnection";
   context.subscriptions.push(statusBarItemMonitorBoardConnection);
   statusBarItemMonitorBoardConnection.show();
-  serialMonitor.start(parseRate());
+  serialMonitor.start(getSerialMonitorBaudrateFromSourceCode());
 
   statusBarItemSelectedDeploymentMethod = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItemSelectedDeploymentMethod.tooltip = "Deployment method";
@@ -112,6 +113,7 @@ export function activate(context: vscode.ExtensionContext) {
   let disposable = vscode.commands.registerCommand('extension.chooseBoard', async (cmdArgs: any) => {
     commandArgs = cmdArgs;
     vscode.window.showQuickPick(availableBoards, { matchOnDescription: true, matchOnDetail: true, placeHolder: "Find your board by make, model or chipset" })
+      // this is a nifty way to use await without making the outer method async
       .then(async x => {
         if (x && x !== selectedBoard) {
           selectedBoard = x;
@@ -123,12 +125,14 @@ export function activate(context: vscode.ExtensionContext) {
               availableDeploymentMethods.length = 0;
               vscode.window.showWarningMessage("Due to inconsistencies between board names reported by Arduino-CLI before and after core installation, some boards must be manually re-selected after core installation. This has just happened to you.", { modal: true }, "More info").then(button => {
                 if (button) {
+                  // browserLaunchMap is an array of the commands for the different platforms, indexed by platform
                   child_process.exec(`${browserLaunchMap[process.platform]} https://github.com/arduino/arduino-cli/issues/997`);
                 }
               });
             }
           }
           if (selectedBoard.board.fqbn) {
+            // config updates can fail if you don't wait for them
             await arduinoCliConfig.update("selectedBoard", selectedBoard, vscode.ConfigurationTarget.Workspace);
             statusBarItemSelectedBoard.text = selectedBoard.board.name;
             statusBarItemSelectedDeploymentMethod.text = "D:NOT SET";
@@ -159,7 +163,7 @@ export function activate(context: vscode.ExtensionContext) {
           if (selectedMonitorBoardConnection.label === "No monitor") {
             serialMonitor.stop();
           } else {
-            serialMonitor.start(parseRate());
+            serialMonitor.start(getSerialMonitorBaudrateFromSourceCode());
             serialChannel.show(true);
           }
         }
@@ -293,7 +297,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(disposable);
 }
-function parseRate(): number | undefined {
+function getSerialMonitorBaudrateFromSourceCode(): number | undefined {
   let src = getInoDoc()?.getText();
   if (src) {
     let matches = /Serial.begin\((\d+)\);/.exec(src);
