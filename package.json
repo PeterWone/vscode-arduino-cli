@@ -148,9 +148,12 @@
     "test": "npm run compile && node ./node_modules/vscode/bin/test"
   },
   "devDependencies": {
+    "@types/glob": "^7.1.1",
     "@types/mocha": "^5.2.7",
     "@types/node": "^12.7.12",
     "@types/vscode": "^1.49.0",
+    "glob": "^7.1.4",
+    "mocha": "^6.1.4",
     "del": "^5.1.0",
     "event-stream": "^4.0.1",
     "gulp": "^4.0.2",
