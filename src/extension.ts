@@ -292,6 +292,12 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(disposable);
   disposable = vscode.commands.registerCommand('extension.flash', async (cmdArgs: any) => {
+
+    if (!selectedBoard.board) {
+      vscode.window.showErrorMessage("You must select a board first. Use the \'Choose board\' command to do this.", "OK");
+      return;
+    }
+    
     outputChannel.show(true);
     commandArgs = cmdArgs;
     let args = [
