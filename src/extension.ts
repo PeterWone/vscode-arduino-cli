@@ -42,7 +42,7 @@ let byLabel = (a: any, b: any) => {
   let B = b.label.toUpperCase();
   return A < B ? -1 : A > B ? 1 : 0;
 };
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   i18n.init(context.extensionPath);
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(checkConfigurationChange));
   arduinoCliConfig = vscode.workspace.getConfiguration("arduinoCli");
@@ -63,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
   refreshIntervalLibraryCatalogueMonths = arduinoCliConfig.refreshIntervalLibraryCatalogueMonths;
   vscode.commands.executeCommand("setContext", "showCompileAndDeployButtonsOnToolbar", arduinoCliConfig.showCompileAndDeployButtonsOnToolbar);
-  loadQuickPickBoards();
+  
   cli("lib list").then(x => {
     installedLibraries = x;
     getLibraryCatalogue("lib search").then(cat => {
@@ -78,7 +78,16 @@ export function activate(context: vscode.ExtensionContext) {
   });
   cli("config dump").then(x => directories = x.directories);
 
-  selectedBoard = arduinoCliConfig.selectedBoard;
+  await loadQuickPickBoards();
+  
+  if (arduinoCliConfig.board) {
+    let board = availableBoards.find(b => b.board.fqbn === arduinoCliConfig.board);
+    if (board) {
+      selectedBoard = board;
+    }
+  }
+  
+
   statusBarItemSelectedBoard = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusBarItemSelectedBoard.command = "extension.chooseBoard";
   context.subscriptions.push(statusBarItemSelectedBoard);
@@ -133,7 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
           }
           if (selectedBoard.board.fqbn) {
             // config updates can fail if you don't wait for them
-            await arduinoCliConfig.update("selectedBoard", selectedBoard, vscode.ConfigurationTarget.Workspace);
+            await arduinoCliConfig.update("board", selectedBoard.board.fqbn, vscode.ConfigurationTarget.Workspace);
             statusBarItemSelectedBoard.text = selectedBoard.board.name;
             statusBarItemSelectedDeploymentMethod.text = "D:NOT SET";
             getDeploymentMethodsForSelectedBoard();
@@ -350,11 +359,10 @@ function checkConfigurationChange(e: vscode.ConfigurationChangeEvent) {
 }
 function loadQuickPickBoards() {
   availableBoards.length = 0;
-  cli("core search").then((x: Core[]) => {
+  return cli("core search").then((x: Core[]) => {
     x.forEach(c => c.Boards.forEach(b => availableBoards.push(new QuickPickBoard(b, c))));
     availableBoards.sort(byLabel);
   });
-
 }
 function fixSelectedBoard(): boolean {
   let found = availableBoards.find(b => b.board.name === selectedBoard.board.name);
