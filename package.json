@@ -99,8 +99,8 @@
             "scope": "machine",
             "description": "%configuration.description.arduinoCliPath%"
           },
-          "arduinoCli.selectedBoard": {
-            "type": "object",
+          "arduinoCli.board": {
+            "type": "string",
             "description": "%configuration.description.board%"
           },
           "arduinoCli.selectedMonitorBoardConnection": {
